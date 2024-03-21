@@ -1,4 +1,4 @@
-# File Renamer Script
+# File Renamer Script (renaim.py)
 
 The File Renamer Script is a versatile Python tool designed to automate the process of renaming files within a directory. It offers a variety of options to customize the renaming process, including adding resolutions for image files, appending creation dates, generating descriptive names using AI, and creating symbolic links instead of renaming.
 
