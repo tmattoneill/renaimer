@@ -30,6 +30,9 @@ def pre_process_files(files: List[str]) -> List[str]:
     """
     clean_list = []
     for file_path in files:
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            continue
         if os.path.islink(file_path):
             print(f"Skipping symlink: {file_path}")
             continue
@@ -279,11 +282,15 @@ def main():
     output_dir = args.out
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     files_to_process = pre_process_files(args.files)
     # TODO: Fix this error [FileNotFoundError: [Errno 2] No such file or directory: ... ]
 
-    print(f"*** pre ***: Processing {len(files_to_process)} files...")
+    if files_to_process:
+        print(f"*** pre ***: Processing {len(files_to_process)} files...")
+    else:
+        print("No files to process. Exiting.")
+        sys.exit()
     
     for file_path in files_to_process:        
         process_file(file_path, output_dir, args.resolution, args.link, args.timestamp, args.description)
