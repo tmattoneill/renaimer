@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import argparse
 from datetime import datetime
 from PIL import Image
@@ -6,11 +7,9 @@ import base64
 import io
 import requests
 from dotenv import load_dotenv
-import json
-from typing import List, Dict, Union, Any
+from typing import List, Union
 
 load_dotenv()
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif'}
 
 
@@ -102,7 +101,7 @@ def image_to_base64(image_path: str) -> str:
 
 
 def process_file(file_path: str, output_dir: str, include_resolution: bool, create_link: bool,
-                 timestamp_position: str, generate_description: bool):
+                 timestamp_position: str, generate_description: bool, api_key: str):
     """
     Process and rename a file based on the specified parameters.
 
@@ -128,8 +127,8 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     date_str = creation_date.strftime('%Y-%m-%d')
 
     # Pass image to AI for processing if requested and the file is allowed.
-    if generate_description and allowed_file(file_path):  # Assumes allowed_file is defined elsewhere
-        suggested_filename = process_image(file_path)  # Assumes process_image is defined elsewhere
+    if generate_description and allowed_file(file_path):
+        suggested_filename = process_image(file_path, api_key)
         if suggested_filename:
             name = suggested_filename.rsplit('.', 1)[0]
 
@@ -169,7 +168,7 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
         print(f"*** err ***:  {file_path}: {e}")
 
 
-def process_image(image_path: str) -> Union[str, None]:
+def process_image(image_path: str, api_key: str) -> Union[str, None]:
     """
     :param image_path: The path to the image file.
     :return: Either a suggested filename for the image or None if there was an error or the file type is not allowed.
@@ -206,7 +205,7 @@ def process_image(image_path: str) -> Union[str, None]:
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {OPENAI_API_KEY}"
+            "Authorization": f"Bearer {api_key}"
         }
 
         payload = {
@@ -258,24 +257,63 @@ def main():
 
     :return: None
     """
-    parser = argparse.ArgumentParser(description='Rename files or create symlinks with optional timestamp, resolution, and AI-generated descriptions.')
-    parser.add_argument('-o', '--out', help='Output directory')
-    parser.add_argument('-k', '--api-key', help='Your OpenAI API Key')
-    parser.add_argument('-r', '--resolution', action='store_true', help='Include resolution for image files')
-    parser.add_argument('-l', '--link', action='store_true', help='Create symlinks instead of renaming')
-    parser.add_argument('-ts', '--timestamp', choices=['pre', 'post'], help='Append timestamp before or after the filename')
-    parser.add_argument('-d', '--description', action='store_true', help='Generate descriptive filenames using OpenAI')
-    parser.add_argument('-a', '--all', action='store_true', help='Process all files, not just those with allowed extensions')
-    parser.add_argument('-pre', '--prefix', type=str, dest='prefix', help='Add any custom prefix to the filename')
-    parser.add_argument('-post', '--suffix', type=str, dest='suffix', help='Add any custom prefix to the filename')
-    parser.add_argument('files', nargs='+', help='Files to process')
+    parser = argparse.ArgumentParser(description="""
+        This script renames files or creates symbolic links based on a variety of options including optional 
+        timestamp insertion, resolution inclusion for image files, and AI-generated descriptions.
+        
+        It supports processing multiple files at once and allows customization through a range of command-line 
+        arguments.
+        """)
+
+    parser.add_argument('-o', '--out',
+                        help='Specify the output directory where the processed files should be placed. If not '
+                             'provided, the original file location is used.')
+
+    parser.add_argument('-k', '--api-key',
+                        help='Provide your OpenAI API Key for accessing AI-generated descriptions. This is required if '
+                             'the --description option is used.')
+
+    parser.add_argument('-r', '--resolution', action='store_true',
+                        help='Include the resolution of image files in their filenames. Applies only to supported image'
+                             ' formats (.png, .jpg, .jpeg, .gif).')
+
+    parser.add_argument('-l', '--link', action='store_true',
+                        help='Create symbolic links to the original files instead of renaming them. This is useful for '
+                             'non-destructive operations.')
+
+    parser.add_argument('-ts', '--timestamp', choices=['pre', 'post'],
+                        help='Choose where to append the file creation timestamp in the filename. "pre" adds it before '
+                             'the original filename, "post" after. The format is YYYY-MM-DD.')
+
+    parser.add_argument('-d', '--description', action='store_true',
+                        help='Generate a descriptive filename using AI (via OpenAI API) based on the file content. '
+                             'Requires an API key provided via -k option.')
+
+    parser.add_argument('-a', '--all', action='store_true',
+                        help='Process all files in the input, not just those with allowed extensions. By default, only '
+                             'image files (.png, .jpg, .jpeg, .gif) are processed.')
+
+    parser.add_argument('-pre', '--prefix', type=str, dest='prefix',
+                        help='Add a custom prefix to the filename. This text is added at the beginning of the '
+                             'filename.')
+
+    parser.add_argument('-post', '--suffix', type=str, dest='suffix',
+                        help='Add a custom suffix to the filename. This text is added at the end of the filename, '
+                             'before the file extension.')
+
+    parser.add_argument('files', nargs='+',
+                        help='The list of files to process. Multiple files can be specified. Wildcards (e.g., "*.jpg") '
+                             'are supported by the shell.')
+
     args = parser.parse_args()
+
+    openai_api_key = os.getenv('OPENAI_API_KEY')
     
     if args.api_key:
-        os.environ["OPENAI_API_KEY"] = args.api_key
-        print(f"Using API Key: { os.getenv("OPENAI_API_KEY")}")
+        openai_api_key = args.api_key
+        print(f"Using API Key: ", openai_api_key)
     
-    if not os.getenv("OPENAI_API_KEY"):
+    if not openai_api_key:
         print("No valid API key found. Rerun with -k option or set the environment variable")
         sys.exit()
 
@@ -284,7 +322,6 @@ def main():
         os.makedirs(output_dir)
 
     files_to_process = pre_process_files(args.files)
-    # TODO: Fix this error [FileNotFoundError: [Errno 2] No such file or directory: ... ]
 
     if files_to_process:
         print(f"*** pre ***: Processing {len(files_to_process)} files...")
@@ -293,7 +330,9 @@ def main():
         sys.exit()
     
     for file_path in files_to_process:        
-        process_file(file_path, output_dir, args.resolution, args.link, args.timestamp, args.description)
+        process_file(file_path, output_dir,
+                     args.resolution, args.link, args.timestamp, args.description,
+                     openai_api_key)
 
 
 if __name__ == '__main__':
