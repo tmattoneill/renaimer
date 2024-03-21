@@ -67,7 +67,7 @@ def get_image_resolution(file_path: str) -> str:
     """
     with Image.open(file_path) as img:
         width, height = img.size
-        return f"{height}-{width}"
+        return f"{width}-{height}"
 
 
 def allowed_file(filename: str) -> bool:
@@ -281,6 +281,7 @@ def main():
         os.makedirs(output_dir)
     
     files_to_process = pre_process_files(args.files)
+    # TODO: Fix this error [FileNotFoundError: [Errno 2] No such file or directory: ... ]
 
     print(f"*** pre ***: Processing {len(files_to_process)} files...")
     
