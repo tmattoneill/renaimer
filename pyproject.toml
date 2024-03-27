@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "renaimer"
+version = "0.1.0"
+description = "A helpful tool for renaiming image files using AI (img2txt)."
+authors = ["Matt O'Neill <tmattoneill@gmail.com>"]
+license = "GNU Public License"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pillow = "^10.2.0"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+rich = "^13.7.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

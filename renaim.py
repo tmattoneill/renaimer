@@ -8,6 +8,8 @@ import io
 import requests
 from dotenv import load_dotenv
 from typing import List, Union
+from filename import Filename
+from hashlib import md5
 
 load_dotenv()
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif'}
@@ -98,6 +100,20 @@ def image_to_base64(image_path: str) -> str:
         buffer = io.BytesIO()
         img.save(buffer, format=img_format)
         return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
+def make_hash(image_path: str) -> str:
+    """
+    Compute the hash value of an image file.
+
+    :param image_path: The path to the image file.
+    :type image_path: str
+    :return: The hash value of the image.
+    :rtype: str
+    """
+    img_b64 = image_to_base64(image_path)
+    hash_value = md5(img_b64.encode()).hexdigest()
+    return hash_value.lower()
 
 
 def process_file(file_path: str, output_dir: str, include_resolution: bool, create_link: bool,
@@ -210,7 +226,7 @@ def process_image(image_path: str, api_key: str) -> Union[str, None]:
 
     filename: str = os.path.basename(image_path)
 
-    def get_image_text(base64_image: str, filename: str) -> Union[str, None]:
+    def get_image_text(b: str, f: str) -> Union[str, None]:
         prompt_text: str = """
             Generate a descriptive filename for this image using a valid filename. Follow these rules:
             * DO NOT add any extension to the filename
@@ -236,7 +252,7 @@ def process_image(image_path: str, api_key: str) -> Union[str, None]:
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
+                                "url": f"data:image/jpeg;base64,{b}"
                             }
                         }
                     ]
@@ -249,7 +265,7 @@ def process_image(image_path: str, api_key: str) -> Union[str, None]:
             response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
             if response.status_code == 200:
-                suggested_filename = response.json()['choices'][0]['message']['content'].strip() + f".{filename.split('.')[-1]}"
+                suggested_filename = response.json()['choices'][0]['message']['content'].strip() + f".{f.split('.')[-1]}"
                 return suggested_filename.lower()
             else:
                 print(f"Error processing image with OpenAI: HTTP Status Code {response.status_code}")
@@ -303,6 +319,10 @@ def main():
     parser.add_argument('-d', '--description', action='store_true',
                         help='Generate a descriptive filename using AI (via OpenAI API) based on the file content. '
                              'Requires an API key provided via -k option.')
+
+    parser.add_argument('-h', '--hash', action='store_true',
+                        help='Use a hash (MD5) of the image data to create the base filename. Incompatible with '
+                        'the -d / --description option.')
 
     parser.add_argument('-a', '--all', action='store_true',
                         help='Process all files in the input, not just those with allowed extensions. By default, only '
