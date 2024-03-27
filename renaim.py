@@ -103,16 +103,31 @@ def image_to_base64(image_path: str) -> str:
 def process_file(file_path: str, output_dir: str, include_resolution: bool, create_link: bool,
                  timestamp_position: str, generate_description: bool, api_key: str):
     """
-    Process and rename a file based on the specified parameters.
-
-    :param file_path: The path of the file to be processed. Ensure it's an absolute path to avoid issues with symlink creation.
-    :param output_dir: The directory where the processed file should be outputted. This is converted to an absolute path to ensure symlinks work correctly.
-    :param include_resolution: Whether to include the resolution in the new file name for image files.
-    :param create_link: Whether to create a symbolic link instead of renaming the file. If a symlink is created, both file_path and output_path are used as absolute paths.
-    :param timestamp_position: The position of the timestamp in the new file name ("pre" or "post").
-    :param generate_description: Whether to generate a description for the file using AI.
-
+    :param file_path: The path to the input file.
+    :param output_dir: The directory where the processed file will be saved. If not provided, the processed file will be saved in the same directory as the input file.
+    :param include_resolution: A boolean flag indicating whether to include the resolution in the processed file name.
+    :param create_link: A boolean flag indicating whether to create a symbolic link instead of renaming the file.
+    :param timestamp_position: The position of the timestamp in the processed file name. Valid values are 'pre', 'post', or any other value to exclude the timestamp.
+    :param generate_description: A boolean flag indicating whether to generate a description for the file using an AI model.
+    :param api_key: The API key required for accessing the AI model.
     :return: None
+
+    This method processes the input file according to the specified parameters and saves the processed file in the specified output directory or the same directory as the input file. The
+    * method performs the following steps:
+
+    1. Ensures the file_path parameter is an absolute path.
+    2. Extracts the base name and extension of the input file.
+    3. Retrieves the creation date of the input file.
+    4. If generate_description is enabled and the file is allowed, passes the image to an AI model for processing and suggests a new filename based on the AI result.
+    5. If include_resolution is enabled and the file extension is allowed, appends the resolution to the filename.
+    6. Constructs the new filename based on the timestamp_position and the original filename.
+    7. Determines the output path based on the specified output directory or the same directory as the input file.
+    8. If create_link is enabled, creates a symbolic link from the input file to the output path.
+    9. If create_link is disabled, renames the input file to the output path.
+    10. Prints the action that was performed (either "sym" for symlink or "mov" for rename) and the filenames involved.
+    11. Handles exceptions related to existing files or file system errors.
+
+    Note: This method relies on external functions like get_creation_date, allowed_file, process_image, get_image_resolution that are assumed to be defined elsewhere in the code.
     """
 
     # Ensure file_path is absolute to avoid issues with symlink creation.
@@ -293,20 +308,20 @@ def main():
                         help='Process all files in the input, not just those with allowed extensions. By default, only '
                              'image files (.png, .jpg, .jpeg, .gif) are processed.')
 
-    parser.add_argument('-pre', '--prefix', type=str, dest='prefix',
+    parser.add_argument('-pp', '--prepend', type=str, dest='prepend',
                         help='Add a custom prefix to the filename. This text is added at the beginning of the '
-                             'filename.')
+                             'filename. Will be separated with a an underscore (_) at the end.')
 
-    parser.add_argument('-post', '--suffix', type=str, dest='suffix',
+    parser.add_argument('-ap', '--append', type=str, dest='append',
                         help='Add a custom suffix to the filename. This text is added at the end of the filename, '
-                             'before the file extension.')
+                             'before the file extension. Will be separated with a an underscore (_) before the suffix.')
 
     parser.add_argument('files', nargs='+',
                         help='The list of files to process. Multiple files can be specified. Wildcards (e.g., "*.jpg") '
                              'are supported by the shell.')
 
     args = parser.parse_args()
-
+    print(args, type(args))
     openai_api_key = os.getenv('OPENAI_API_KEY')
     
     if args.api_key:
