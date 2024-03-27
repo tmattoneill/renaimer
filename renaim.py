@@ -7,7 +7,7 @@ import base64
 import io
 import requests
 from dotenv import load_dotenv
-from typing import List, Union
+from typing import List, Union, Tuple
 from filename import Filename
 from hashlib import md5
 
@@ -64,14 +64,13 @@ def get_creation_date(file_path: str) -> datetime:
             return datetime.fromtimestamp(stat.st_mtime)
 
 
-def get_image_resolution(file_path: str) -> str:
+def get_image_resolution(file_path: str) -> Tuple[int, int]:
     """
     :param file_path: The path to the image file.
     :return: A string representing the image resolution in the format "height-width".
     """
     with Image.open(file_path) as img:
-        width, height = img.size
-        return f"{width}-{height}"
+        return img.size
 
 
 def allowed_file(filename: str) -> bool:
@@ -117,14 +116,15 @@ def make_hash(image_path: str) -> str:
 
 
 def process_file(file_path: str, output_dir: str, include_resolution: bool, create_link: bool,
-                 timestamp_position: str, generate_description: bool, api_key: str):
+                 timestamp_position: str, use_ai: bool, use_hash: bool, prepend_text: str, append_text: str, api_key: str):
     """
     :param file_path: The path to the input file.
     :param output_dir: The directory where the processed file will be saved. If not provided, the processed file will be saved in the same directory as the input file.
     :param include_resolution: A boolean flag indicating whether to include the resolution in the processed file name.
     :param create_link: A boolean flag indicating whether to create a symbolic link instead of renaming the file.
     :param timestamp_position: The position of the timestamp in the processed file name. Valid values are 'pre', 'post', or any other value to exclude the timestamp.
-    :param generate_description: A boolean flag indicating whether to generate a description for the file using an AI model.
+    :param use_ai: A boolean flag indicating whether to generate a description for the file using an AI model.
+    :param use_hash: A boolean flag indicating whether to generate a hash for the file using a hash model.
     :param api_key: The API key required for accessing the AI model.
     :return: None
 
@@ -153,28 +153,41 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     base_name = os.path.basename(file_path)
     name, ext = os.path.splitext(base_name)
 
-    # Determine the date the file was created in case user asked for it.
+    # Determine the date the file was created in case user asked for it
     creation_date = get_creation_date(file_path)  # Assumes get_creation_date is defined elsewhere
     date_str = creation_date.strftime('%Y-%m-%d')
 
+    # Create the filename instance
+    filename = Filename(base_name=name, ext=ext, created_at=creation_date)
+
     # Pass image to AI for processing if requested and the file is allowed.
-    if generate_description and allowed_file(file_path):
+    if use_ai and allowed_file(file_path):
         suggested_filename = process_image(file_path, api_key)
         if suggested_filename:
-            name = suggested_filename.rsplit('.', 1)[0]
+            filename.base_name = suggested_filename.rsplit('.', 1)[0]
+    elif use_hash and allowed_file(file_path):
+        filename.base_name = make_hash(file_path)
+    else:
+        filename.base_name = name
 
     # This check becomes straightforward and consistent with allowed_file's logic.
     if include_resolution and ext.lower() in ALLOWED_EXTENSIONS:
         resolution = get_image_resolution(file_path)
-        name = f"{name}_{resolution}"
+        filename.resolution = resolution
+
+    # Append or prepend specified text
+    if prepend_text:
+        filename.pre = prepend_text
+    elif append_text:
+        filename.post = append_text
 
     # Calculate the date format and add before or after filename as specified
     if timestamp_position == 'pre':
-        new_name = f"{date_str}_{name}{ext}"
+        filename.pre = f"{date_str}_"
     elif timestamp_position == 'post':
-        new_name = f"{name}_{date_str}{ext}"
-    else:
-        new_name = f"{name}{ext}"
+        filename.post += f"_{date_str}"
+
+    new_name = f"{filename.pre}{filename.base_name}{filename.post}.{filename.ext}"
 
     # Use the specified output directory or the existing directory of the file
     if output_dir:
@@ -320,7 +333,7 @@ def main():
                         help='Generate a descriptive filename using AI (via OpenAI API) based on the file content. '
                              'Requires an API key provided via -k option.')
 
-    parser.add_argument('-h', '--hash', action='store_true',
+    parser.add_argument('-md5', '--hash', action='store_true',
                         help='Use a hash (MD5) of the image data to create the base filename. Incompatible with '
                         'the -d / --description option.')
 
@@ -341,7 +354,12 @@ def main():
                              'are supported by the shell.')
 
     args = parser.parse_args()
-    print(args, type(args))
+
+    # Can not use both hash and describe
+    if args.hash and args.description:
+        print(f"*** err  ***: Can not select both AI Description and Hash")
+        sys.exit(1)
+
     openai_api_key = os.getenv('OPENAI_API_KEY')
     
     if args.api_key:
@@ -366,7 +384,7 @@ def main():
     
     for file_path in files_to_process:        
         process_file(file_path, output_dir,
-                     args.resolution, args.link, args.timestamp, args.description,
+                     args.resolution, args.link, args.timestamp, args.description, args.hash, args.prepend, args.append,
                      openai_api_key)
 
 

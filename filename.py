@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Any
 from pydantic import BaseModel, PositiveInt, field_validator
 from datetime import datetime
 
@@ -8,12 +8,12 @@ class Filename(BaseModel, validate_assignment=True):
     ext: str
     created_at: datetime
     resolution: Optional[Tuple[PositiveInt, PositiveInt]] = None
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    pre: Optional[str] = ''
+    post: Optional[str] = ''
 
     @field_validator('created_at')
     @classmethod
-    def parse_date(cls, ca):
+    def parse_date(cls, ca: Any):
         if isinstance(ca, datetime):
             return ca
         elif isinstance(ca, str):
