@@ -187,7 +187,7 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     elif timestamp_position == 'post':
         filename.post += f"_{date_str}"
 
-    new_name = f"{filename.pre}{filename.base_name}{filename.post}.{filename.ext}"
+    new_name = f"{filename.pre}{filename.base_name}{filename.post}{filename.ext}"
 
     # Use the specified output directory or the existing directory of the file
     if output_dir:
@@ -215,6 +215,7 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
 def process_image(image_path: str, api_key: str) -> Union[str, None]:
     """
     :param image_path: The path to the image file.
+    :param api_key: API key used to authorize request
     :return: Either a suggested filename for the image or None if there was an error or the file type is not allowed.
 
     This method processes an image by converting it to base64 format and sending it to the OpenAI API for text generation. The generated text is then used to suggest a filename for the image
@@ -245,7 +246,7 @@ def process_image(image_path: str, api_key: str) -> Union[str, None]:
             * DO NOT add any extension to the filename
             * DO NOT use words like: [in, a, the, with, an]
             * DO be brief but clear
-            * DO use _ between words: like_this_example"""
+            * DO use _ between words: like_this_example.png """
 
         headers = {
             "Content-Type": "application/json",
