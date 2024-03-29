@@ -134,7 +134,8 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     1. Ensures the file_path parameter is an absolute path.
     2. Extracts the base name and extension of the input file.
     3. Retrieves the creation date of the input file.
-    4. If generate_description is enabled and the file is allowed, passes the image to an AI model for processing and suggests a new filename based on the AI result.
+    4. If generate_description is enabled and the file is allowed, passes the image to an AI model for processing and
+    suggests a new filename based on the AI result.
     5. If include_resolution is enabled and the file extension is allowed, appends the resolution to the filename.
     6. Constructs the new filename based on the timestamp_position and the original filename.
     7. Determines the output path based on the specified output directory or the same directory as the input file.
@@ -143,7 +144,8 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     10. Prints the action that was performed (either "sym" for symlink or "mov" for rename) and the filenames involved.
     11. Handles exceptions related to existing files or file system errors.
 
-    Note: This method relies on external functions like get_creation_date, allowed_file, process_image, get_image_resolution that are assumed to be defined elsewhere in the code.
+    Note: This method relies on external functions like get_creation_date, allowed_file, process_image,
+    get_image_resolution that are assumed to be defined elsewhere in the code.
     """
 
     # Ensure file_path is absolute to avoid issues with symlink creation.
@@ -174,6 +176,9 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     if include_resolution and ext.lower() in ALLOWED_EXTENSIONS:
         resolution = get_image_resolution(file_path)
         filename.resolution = resolution
+        resolution_str = f"_{resolution[0]}-{resolution[1]}"
+    else:
+        resolution_str = ''
 
     # Append or prepend specified text
     if prepend_text:
@@ -187,7 +192,7 @@ def process_file(file_path: str, output_dir: str, include_resolution: bool, crea
     elif timestamp_position == 'post':
         filename.post += f"_{date_str}"
 
-    new_name = f"{filename.pre}{filename.base_name}{filename.post}{filename.ext}"
+    new_name = f"{filename.pre}{filename.base_name}{filename.post}{resolution_str}{filename.ext}"
 
     # Use the specified output directory or the existing directory of the file
     if output_dir:
@@ -368,7 +373,8 @@ def main():
         print(f"Using API Key: ", openai_api_key)
     
     if not openai_api_key:
-        print("No valid API key found. Rerun with -k option or set the environment variable")
+        print("No valid API key found. Rerun with -k option or set the environment variable. "
+              "It is suggested to export the env variable as a solution.")
         sys.exit()
 
     output_dir = args.out
